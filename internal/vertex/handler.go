@@ -17,17 +17,17 @@ func CreateMCPServer(app *AppConfig, version string) (*server.MCPServer, error) 
 	srv := server.NewMCPServer("mcp-vertex-search-snippets", version)
 
 	// One tool: "search"
-	tool := mcp.NewTool(
-		"search",
-		mcp.WithDescription("Search Vertex AI Search and return text built from segments/snippets."),
+	opts := []mcp.ToolOption{
+		mcp.WithDescription("Search for relevant documents based on the provided query."),
 		mcp.WithString("query", mcp.Description("Search text"), mcp.Required()),
 		mcp.WithNumber("maxExtractiveSegmentCount", mcp.Description("Maximum number of extractive segments to return (default: 1)")),
-		mcp.WithTitleAnnotation("Search Vertex"),
+		mcp.WithTitleAnnotation("Search"),
 		mcp.WithReadOnlyHintAnnotation(true),
 		mcp.WithDestructiveHintAnnotation(false),
 		mcp.WithIdempotentHintAnnotation(true),
 		mcp.WithOpenWorldHintAnnotation(true),
-	)
+	}
+	tool := mcp.NewTool("search", opts...)
 	srv.AddTool(tool, makeHandler(app))
 
 	return srv, nil
@@ -75,7 +75,7 @@ func makeHandler(app *AppConfig) server.ToolHandlerFunc {
 				},
 			},
 		}
-		raw, status, err := PostSearch(app.Config.URL, bearerToken, body, app.IsDebug)
+		raw, status, err := PostSearch(app.Config.URL(), bearerToken, body, app.IsDebug)
 		if err != nil {
 			return mcp.NewToolResultErrorFromErr("Vertex search failed", err), nil
 		}
@@ -86,9 +86,10 @@ func makeHandler(app *AppConfig) server.ToolHandlerFunc {
 		// Build plain-text output from the response:
 		text := extractText(raw)
 		if strings.TrimSpace(text) == "" {
-			// Fallback to raw JSON if we couldn't extract anything usable
-			return mcp.NewToolResultText(string(raw)), nil
+			// There is no content, return a default message
+			return mcp.NewToolResultText("No content found for the query."), nil
 		}
+
 		return mcp.NewToolResultText(text), nil
 	}
 }

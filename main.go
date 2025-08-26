@@ -18,7 +18,7 @@ func main() {
 	var dbg bool
 
 	flag.StringVar(&httpAddr, "http", "", "run HTTP transport on port (e.g., 8080); defaults to stdio")
-	flag.StringVar(&cfgFlag, "vertexConfig", "", "path to the folder containing vertex.yaml (overrides VERTEX_CONFIG)")
+	flag.StringVar(&cfgFlag, "vertexConfig", "", "path to the configuration YAML file(overrides VERTEX_CONFIG)")
 	flag.BoolVar(&dbg, "vertexDebug", false, "enable debug logging (overrides VERTEX_DEBUG)")
 	flag.Parse()
 
