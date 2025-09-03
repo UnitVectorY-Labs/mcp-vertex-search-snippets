@@ -18,7 +18,7 @@ func (c *Config) URL() string {
 
 	// Domain is based on location
 	domain := "discoveryengine.googleapis.com"
-	if c.Location != "us" {
+	if c.Location == "us" {
 		domain = c.Location + "us-discoveryengine.googleapis.com"
 	} else if c.Location == "eu" {
 		domain = "eu-discoveryengine.googleapis.com"
