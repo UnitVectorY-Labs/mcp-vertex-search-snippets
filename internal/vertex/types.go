@@ -28,7 +28,7 @@ func (c *Config) URL() string {
 	}
 
 	return fmt.Sprintf(
-		"https://%s/v1alpha/projects/%s/locations/%s/collections/default_collection/engines/%s/servingConfigs/default_search:search",
+		"https://%s/v1/projects/%s/locations/%s/collections/default_collection/engines/%s/servingConfigs/default_search:search",
 		domain,
 		c.ProjectId,
 		c.Location,
