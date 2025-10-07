@@ -10,7 +10,7 @@ It provides an MCP-compliant search tool that accepts a query string returning h
 
 ## Releases
 
-All official versions of mcp-vertex-search-snippets are published on GitHub Releases. Since this MCP server is written in Go, each release provides pre-compiled executables for macOS, Linux, and Windows—ready to download and run.
+Versions of `mcp-vertex-search-snippets` are published on GitHub Releases. Since this MCP server is written in Go, each release provides pre-compiled executables for macOS, Linux, and Windows—ready to download and run.
 
 Alternatively, if you have Go installed, you can install mcp-vertex-search-snippets directly from source using:
 
@@ -48,7 +48,7 @@ Attributes:
 - `location`: One of global, us, or eu.
 - `app_id`: The Discovery Engine app/engine identifier.
 
-## Tools
+## MCP Tools
 
 This MCP server exposes a single tool:
 
