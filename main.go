@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"runtime/debug"
 
 	"github.com/UnitVectorY-Labs/mcp-vertex-search-snippets/internal/vertex"
 )
@@ -13,6 +14,15 @@ import (
 var Version = "dev"
 
 func main() {
+	// Set the build version from the build info if not set by the build system
+	if Version == "dev" || Version == "" {
+		if bi, ok := debug.ReadBuildInfo(); ok {
+			if bi.Main.Version != "" && bi.Main.Version != "(devel)" {
+				Version = bi.Main.Version
+			}
+		}
+	}
+
 	var httpAddr string
 	var cfgFlag string
 	var dbg bool
