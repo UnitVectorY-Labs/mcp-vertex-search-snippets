@@ -4,7 +4,7 @@ go 1.25.7 // GOVERSION
 
 require (
 	github.com/mark3labs/mcp-go v0.43.2
-	golang.org/x/oauth2 v0.34.0
+	golang.org/x/oauth2 v0.35.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
