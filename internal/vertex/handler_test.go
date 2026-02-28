@@ -139,7 +139,7 @@ func TestExtractText(t *testing.T) {
 			expected: "valid segment",
 		},
 		{
-			name: "whitespace-only extractive segments skips to next result",
+			name: "extractive segments present but whitespace-only does not fall back to snippets",
 			input: `{
 				"results": [{
 					"document": {
