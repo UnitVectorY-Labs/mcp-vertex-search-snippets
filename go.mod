@@ -3,7 +3,7 @@ module github.com/UnitVectorY-Labs/mcp-vertex-search-snippets
 go 1.26.0 // GOVERSION
 
 require (
-	github.com/mark3labs/mcp-go v0.44.0
+	github.com/mark3labs/mcp-go v0.44.1
 	golang.org/x/oauth2 v0.35.0
 	gopkg.in/yaml.v3 v3.0.1
 )
