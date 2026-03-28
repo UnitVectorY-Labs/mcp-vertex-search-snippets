@@ -1,0 +1,11 @@
+name: mcp-vertex-search-snippets
+default_branch: main
+config:
+  description: "A lightweight MCP server that integrates with Vertex AI Search to retrieve configurable snippets and extractive segments for document discovery."
+  license: MIT
+  language: go
+  release: release-go
+  justfile: true
+  codecov: true
+  docs:
+    enabled: false
