@@ -50,26 +50,36 @@ func makeHandler(app *AppConfig) server.ToolHandlerFunc {
 				maxSegments = maxSegmentsInt
 			}
 		}
-
-		// Acquire a token using the Google Cloud authentication library
-		creds, err := google.FindDefaultCredentials(ctx, "https://www.googleapis.com/auth/cloud-platform")
-		if err != nil {
-			return mcp.NewToolResultErrorFromErr("Failed to find default credentials", err), nil
+		if maxSegments < 1 {
+			maxSegments = 1
 		}
 
-		tokenSource := creds.TokenSource
-		token, err := tokenSource.Token()
-		if err != nil {
-			return mcp.NewToolResultErrorFromErr("Failed to acquire access token", err), nil
+		// Check if an Authorization header was provided via HTTP context
+		var bearerToken string
+		if auth, ok := ctx.Value(ctxAuthKey{}).(string); ok && auth != "" {
+			bearerToken = auth
+		} else {
+			// Acquire a token using the Google Cloud authentication library
+			creds, err := google.FindDefaultCredentials(ctx, "https://www.googleapis.com/auth/cloud-platform")
+			if err != nil {
+				return mcp.NewToolResultErrorFromErr("Failed to find default credentials", err), nil
+			}
+
+			token, err := creds.TokenSource.Token()
+			if err != nil {
+				return mcp.NewToolResultErrorFromErr("Failed to acquire access token", err), nil
+			}
+
+			bearerToken = fmt.Sprintf("Bearer %s", token.AccessToken)
 		}
 
-		// Format the token as Bearer token
-		bearerToken := fmt.Sprintf("Bearer %s", token.AccessToken)
-
-		// Build search request with contentSearchSpec if maxSegments is specified
+		// Build search request
 		body := searchRequest{
 			Query: q,
 			ContentSearchSpec: &contentSearchSpec{
+				SnippetSpec: &snippetSpec{
+					ReturnSnippet: true,
+				},
 				ExtractiveContentSpec: &extractiveContentSpec{
 					MaxExtractiveSegmentCount: maxSegments,
 				},
