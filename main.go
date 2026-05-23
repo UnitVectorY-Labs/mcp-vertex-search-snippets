@@ -6,12 +6,14 @@ import (
 	"io"
 	"log"
 	"os"
+	"runtime"
 	"runtime/debug"
 
 	"github.com/UnitVectorY-Labs/mcp-vertex-search-snippets/internal/vertex"
 )
 
 var Version = "dev"
+const ProjectName = "mcp-vertex-search-snippets"
 
 func main() {
 	// Set the build version from the build info if not set by the build system
@@ -26,11 +28,17 @@ func main() {
 	var httpAddr string
 	var cfgFlag string
 	var dbg bool
+	var showVersion bool
 
 	flag.StringVar(&httpAddr, "http", "", "run HTTP transport on port (e.g., 8080); defaults to stdio")
 	flag.StringVar(&cfgFlag, "vertexConfig", "", "path to the configuration YAML file(overrides VERTEX_CONFIG)")
 	flag.BoolVar(&dbg, "vertexDebug", false, "enable debug logging (overrides VERTEX_DEBUG)")
+	flag.BoolVar(&showVersion, "version", false, "show version information")
 	flag.Parse()
+	if showVersion {
+		fmt.Printf("%s version %s (%s, %s/%s)\n", ProjectName, Version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
+		os.Exit(0)
+	}
 
 	app, err := vertex.LoadAppConfig(cfgFlag, dbg)
 	if err != nil {
