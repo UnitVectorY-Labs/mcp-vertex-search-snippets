@@ -8,7 +8,6 @@ import (
 	"os"
 	"runtime"
 	"runtime/debug"
-	"strings"
 
 	"github.com/UnitVectorY-Labs/mcp-vertex-search-snippets/internal/vertex"
 )
@@ -40,11 +39,6 @@ func main() {
 	flag.StringVar(&cfgFlag, "vertexConfig", "", "path to the configuration YAML file(overrides VERTEX_CONFIG)")
 	flag.BoolVar(&dbg, "vertexDebug", false, "enable debug logging (overrides VERTEX_DEBUG)")
 	flag.BoolVar(&showVersion, "version", false, "show version information")
-	for _, arg := range os.Args[1:] {
-		if arg == "-version" || arg == "--version" || strings.HasPrefix(arg, "-version=") || strings.HasPrefix(arg, "--version=") {
-			printVersionAndExit()
-		}
-	}
 	flag.Parse()
 	if showVersion {
 		printVersionAndExit()
