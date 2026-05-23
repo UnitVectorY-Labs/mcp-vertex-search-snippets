@@ -16,6 +16,11 @@ import (
 var Version = "dev"
 const projectName = "mcp-vertex-search-snippets"
 
+func printVersionAndExit() {
+	fmt.Printf("%s version %s (%s, %s/%s)\n", projectName, Version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
+	os.Exit(0)
+}
+
 func main() {
 	// Set the build version from the build info if not set by the build system
 	if Version == "dev" || Version == "" {
@@ -37,14 +42,12 @@ func main() {
 	flag.BoolVar(&showVersion, "version", false, "show version information")
 	for _, arg := range os.Args[1:] {
 		if arg == "-version" || arg == "--version" || strings.HasPrefix(arg, "-version=") || strings.HasPrefix(arg, "--version=") {
-			fmt.Printf("%s version %s (%s, %s/%s)\n", projectName, Version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
-			os.Exit(0)
+			printVersionAndExit()
 		}
 	}
 	flag.Parse()
 	if showVersion {
-		fmt.Printf("%s version %s (%s, %s/%s)\n", projectName, Version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
-		os.Exit(0)
+		printVersionAndExit()
 	}
 
 	app, err := vertex.LoadAppConfig(cfgFlag, dbg)
