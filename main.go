@@ -8,12 +8,13 @@ import (
 	"os"
 	"runtime"
 	"runtime/debug"
+	"strings"
 
 	"github.com/UnitVectorY-Labs/mcp-vertex-search-snippets/internal/vertex"
 )
 
 var Version = "dev"
-const ProjectName = "mcp-vertex-search-snippets"
+const projectName = "mcp-vertex-search-snippets"
 
 func main() {
 	// Set the build version from the build info if not set by the build system
@@ -34,9 +35,15 @@ func main() {
 	flag.StringVar(&cfgFlag, "vertexConfig", "", "path to the configuration YAML file(overrides VERTEX_CONFIG)")
 	flag.BoolVar(&dbg, "vertexDebug", false, "enable debug logging (overrides VERTEX_DEBUG)")
 	flag.BoolVar(&showVersion, "version", false, "show version information")
+	for _, arg := range os.Args[1:] {
+		if arg == "-version" || arg == "--version" || strings.HasPrefix(arg, "-version=") || strings.HasPrefix(arg, "--version=") {
+			fmt.Printf("%s version %s (%s, %s/%s)\n", projectName, Version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
+			os.Exit(0)
+		}
+	}
 	flag.Parse()
 	if showVersion {
-		fmt.Printf("%s version %s (%s, %s/%s)\n", ProjectName, Version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
+		fmt.Printf("%s version %s (%s, %s/%s)\n", projectName, Version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
 		os.Exit(0)
 	}
 
