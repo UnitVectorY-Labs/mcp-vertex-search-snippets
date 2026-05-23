@@ -6,17 +6,30 @@ import (
 	"io"
 	"log"
 	"os"
+	"regexp"
 	"runtime"
 	"runtime/debug"
+	"strings"
 
 	"github.com/UnitVectorY-Labs/mcp-vertex-search-snippets/internal/vertex"
 )
 
 var Version = "dev"
+
+var semverRe = regexp.MustCompile(`^\d+\.\d+\.\d+`)
+
 const projectName = "mcp-vertex-search-snippets"
 
+func versionString() string {
+	version := Version
+	if semverRe.MatchString(version) && !strings.HasPrefix(version, "v") {
+		version = "v" + version
+	}
+	return fmt.Sprintf("%s version %s (%s, %s/%s)", projectName, version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
+}
+
 func printVersionAndExit() {
-	fmt.Printf("%s version %s (%s, %s/%s)\n", projectName, Version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
+	fmt.Println(versionString())
 	os.Exit(0)
 }
 
