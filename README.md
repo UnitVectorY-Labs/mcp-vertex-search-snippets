@@ -2,18 +2,57 @@
 
 # mcp-vertex-search-snippets
 
-A lightweight MCP server that integrates with Vertex AI Search to retrieve configurable snippets and extractive segments for document discovery.
+A lightweight [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that integrates with [Vertex AI Search](https://cloud.google.com/enterprise-search) (Discovery Engine) to retrieve snippets and extractive segments for document discovery.
 
-## Purpose
+## Overview
 
-mcp-vertex-search-snippets allows you to expose Vertex AI Search as an MCP tool.
-It provides an MCP-compliant search tool that accepts a query string returning high-quality search snippets or extractive results from the files indexed by Vertex AI Search.
+mcp-vertex-search-snippets bridges the gap between AI assistants (such as GitHub Copilot, Claude Desktop, or any MCP-compatible client) and your organization's documents indexed in Google Cloud's Vertex AI Search. It exposes a single MCP `search` tool that an AI assistant can invoke to query your Discovery Engine data store and receive relevant document excerpts.
 
-## Releases
+### Use Case
 
-Versions of `mcp-vertex-search-snippets` are published on GitHub Releases. Since this MCP server is written in Go, each release provides pre-compiled executables for macOS, Linux, and Windows—ready to download and run.
+If your organization has internal documentation, knowledge bases, or website content indexed in Vertex AI Search, this server allows AI assistants to search that content in real time. For example:
 
-Alternatively, if you have Go installed, you can install mcp-vertex-search-snippets directly from source using:
+- An AI coding assistant can look up internal API documentation or runbooks while helping a developer.
+- A support chatbot can search a company knowledge base for relevant articles to answer customer questions.
+- A research assistant can query indexed papers or reports for relevant passages.
+
+The server returns results in a priority order: **extractive segments** (longer, contextual passages) are preferred, followed by **snippets** (shorter highlighted excerpts), and finally **document title and link** as a fallback. This ensures the AI assistant receives the most useful content available.
+
+### How It Works
+
+```
+MCP Client (e.g., VS Code, Claude Desktop)
+    |
+    |  MCP Protocol (stdio or HTTP)
+    v
+mcp-vertex-search-snippets
+    |
+    |  REST API (authenticated)
+    v
+Vertex AI Search (Discovery Engine)
+    |
+    v
+Your Indexed Documents
+```
+
+1. An MCP client sends a `search` tool call with a query string.
+2. The server constructs a request to the [Discovery Engine `servingConfigs.search`](https://cloud.google.com/generative-ai-app-builder/docs/reference/rest/v1/projects.locations.collections.engines.servingConfigs/search) REST API, requesting both snippets and extractive segments.
+3. The API response is parsed and the most relevant content is returned as plain text to the MCP client.
+
+## Prerequisites
+
+- **Google Cloud Project** with [Vertex AI Search](https://cloud.google.com/enterprise-search) enabled.
+- **Discovery Engine App** configured with a data store containing your indexed content (unstructured documents or website data).
+- **Authentication** via one of:
+  - [Application Default Credentials](https://cloud.google.com/docs/authentication/application-default-credentials) (ADC) -- the default when running locally or on Google Cloud infrastructure.
+  - An `Authorization` header passed through the MCP HTTP transport.
+- The authenticated principal needs the **Discovery Engine Viewer** (`roles/discoveryengine.viewer`) role or equivalent permissions on the Discovery Engine resource.
+
+## Installation
+
+Versions of `mcp-vertex-search-snippets` are published on [GitHub Releases](https://github.com/UnitVectorY-Labs/mcp-vertex-search-snippets/releases/latest). Each release provides pre-compiled executables for macOS, Linux, and Windows ready to download and run.
+
+Alternatively, if you have Go installed, you can install directly from source:
 
 ```bash
 go install github.com/UnitVectorY-Labs/mcp-vertex-search-snippets@latest
@@ -21,22 +60,26 @@ go install github.com/UnitVectorY-Labs/mcp-vertex-search-snippets@latest
 
 ## Configuration
 
-The server is configured using command line parameters, environment variables, and a YAML configuration file (vertex.yaml).
+The server is configured using command line flags, environment variables, and a YAML configuration file.
 
-### Command Line Parameters
+### Command Line Flags
 
-- `--vertexConfig`: Path to the configuration YAML file. If set, this takes precedence over the VERTEX_CONFIG environment variable. If neither is provided, the application exits with an error.
-- `--vertexDebug`: If provided, enables detailed debug logging to stderr, including HTTP request/response dumps. If set, this takes precedence over the VERTEX_DEBUG environment variable.
-- `--http`: Run the server in streamable HTTP mode on the given port (e.g., --http 8080). Defaults to stdio.
+| Flag | Description |
+|---|---|
+| `--vertexConfig` | Path to the configuration YAML file. Overrides the `VERTEX_CONFIG` environment variable. |
+| `--vertexDebug` | Enable detailed debug logging to stderr, including HTTP request/response dumps. Overrides the `VERTEX_DEBUG` environment variable. |
+| `--http` | Run in streamable HTTP mode on the given port (e.g., `--http 8080`). Defaults to stdio transport. |
 
 ### Environment Variables
 
-- `VERTEX_CONFIG`: Path to the configuration YAML file. Used if --vertexConfig is not set.
-- `VERTEX_DEBUG`: If set to true (case-insensitive), enables detailed debug logging. Used if --vertexDebug is not set.
+| Variable | Description |
+|---|---|
+| `VERTEX_CONFIG` | Path to the configuration YAML file. Used when `--vertexConfig` is not set. |
+| `VERTEX_DEBUG` | Set to `true` to enable debug logging. Used when `--vertexDebug` is not set. |
 
-### vertex.yaml
+### Configuration File (vertex.yaml)
 
-The vertex.yaml file specifies the Discovery Engine configuration:
+The YAML configuration file specifies which Discovery Engine app to query:
 
 ```yaml
 project_id: "000000000000"
@@ -44,46 +87,114 @@ location: "us"
 app_id: "example_0000000000000"
 ```
 
-Attributes:
-- `project_id`: Your Google Cloud project ID.
-- `location`: One of global, us, or eu.
-- `app_id`: The Discovery Engine app/engine identifier.
+| Field | Description |
+|---|---|
+| `project_id` | Your Google Cloud project number or ID. |
+| `location` | The location of your Discovery Engine app. Must be one of `global`, `us`, or `eu`. This determines both the API endpoint and the resource path. |
+| `app_id` | The Discovery Engine app (engine) identifier. |
 
-## MCP Tools
+The `location` value determines the API endpoint used:
 
-This MCP server exposes a single tool:
+| Location | API Endpoint |
+|---|---|
+| `global` | `https://discoveryengine.googleapis.com` |
+| `us` | `https://us-discoveryengine.googleapis.com` |
+| `eu` | `https://eu-discoveryengine.googleapis.com` |
+
+## MCP Tool
+
+This server exposes a single tool:
 
 ### search
 
 Search for relevant documents based on the provided query.
 
-Inputs:
-- `query` (string, required): The search text.
-- `maxExtractiveSegmentCount` (number, optional): Maximum number of extractive segments to return (default: 1).
+**Inputs:**
 
-Annotations:
-- `title`: "Search"
-- `readOnlyHint`: true
-- `destructiveHint`: false
-- `idempotentHint`: true
-- `openWorldHint`: true
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `query` | string | Yes | The search text. |
+| `maxExtractiveSegmentCount` | number | No | Maximum number of extractive segments to return per document. Defaults to `1`. Must be at least `1`. |
 
-## Run in Streamable HTTP Mode
+**Annotations:**
 
-By default, the server runs in stdio mode. To run in streamable HTTP mode:
+| Annotation | Value | Description |
+|---|---|---|
+| `title` | Search | Display name for the tool. |
+| `readOnlyHint` | true | The tool does not modify any data. |
+| `destructiveHint` | false | The tool is not destructive. |
+| `idempotentHint` | true | Repeated calls with the same input produce the same result. |
+| `openWorldHint` | true | The tool interacts with an external service. |
+
+**Response Format:**
+
+The tool returns plain text with results separated by `---`. For each search result, content is selected in priority order:
+
+1. **Extractive segments** -- longer, contextual passages extracted directly from the document.
+2. **Snippets** -- shorter highlighted excerpts matching the query.
+3. **Title and link** -- the document title and URL as a fallback when no content is available.
+
+## Transport Modes
+
+### Stdio (Default)
+
+By default, the server communicates over stdin/stdout using the MCP stdio transport. This is the standard mode for local MCP integrations.
 
 ```bash
-./mcp-vertex-search-snippets --http 8080
+./mcp-vertex-search-snippets --vertexConfig vertex.yaml
 ```
 
-Your MCP client can then connect to:
+### Streamable HTTP
 
-http://localhost:8080/mcp
+To run the server as an HTTP endpoint:
 
-If an Authorization header is passed to the MCP server, it is used for authentication with Vertex AI Search. Otherwise, the server obtains credentials via Google Cloud’s default authentication chain (service accounts, gcloud CLI, etc.).
+```bash
+./mcp-vertex-search-snippets --vertexConfig vertex.yaml --http 8080
+```
+
+The MCP endpoint is available at `http://localhost:8080/mcp`.
+
+When running in HTTP mode, the server checks for an `Authorization` header on incoming requests. If present, the header value is forwarded directly to the Vertex AI Search API. If no `Authorization` header is provided, the server falls back to [Application Default Credentials](https://cloud.google.com/docs/authentication/application-default-credentials).
+
+## MCP Client Configuration Examples
+
+### VS Code
+
+Add the following to your VS Code settings (`.vscode/settings.json` or user settings):
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "vertex-search": {
+        "command": "mcp-vertex-search-snippets",
+        "args": [],
+        "env": {
+          "VERTEX_CONFIG": "/path/to/vertex.yaml"
+        }
+      }
+    }
+  }
+}
+```
+
+### Claude Desktop
+
+Add the following to your Claude Desktop configuration file:
+
+```json
+{
+  "mcpServers": {
+    "vertex-search": {
+      "command": "mcp-vertex-search-snippets",
+      "args": ["--vertexConfig", "/path/to/vertex.yaml"]
+    }
+  }
+}
+```
 
 ## Limitations
 
-- Each instance of mcp-vertex-search-snippets can only connect to a single Discovery Engine instance defined in vertex.yaml.
-- Only the search tool is currently exposed; resources are not exposed as MCP Resources.
-- Requires valid Google Cloud credentials available via Application Default Credentials.
+- Each instance connects to a single Discovery Engine app defined in the configuration file. To query multiple apps, run multiple instances.
+- Only the `search` tool is exposed; indexed documents are not exposed as MCP Resources.
+- Requires valid Google Cloud credentials available via Application Default Credentials or an Authorization header (HTTP mode only).
