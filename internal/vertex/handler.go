@@ -6,67 +6,60 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/mark3labs/mcp-go/server"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"golang.org/x/oauth2/google"
 )
 
-type ctxAuthKey struct{}
-
-func CreateMCPServer(app *AppConfig, version string) (*server.MCPServer, error) {
-	srv := server.NewMCPServer("mcp-vertex-search-snippets", version)
-
-	// One tool: "search"
-	opts := []mcp.ToolOption{
-		mcp.WithDescription("Search for relevant documents based on the provided query."),
-		mcp.WithString("query", mcp.Description("Search text"), mcp.Required()),
-		mcp.WithNumber("maxExtractiveSegmentCount", mcp.Description("Maximum number of extractive segments to return (default: 1)")),
-		mcp.WithTitleAnnotation("Search"),
-		mcp.WithReadOnlyHintAnnotation(true),
-		mcp.WithDestructiveHintAnnotation(false),
-		mcp.WithIdempotentHintAnnotation(true),
-		mcp.WithOpenWorldHintAnnotation(true),
-	}
-	tool := mcp.NewTool("search", opts...)
-	srv.AddTool(tool, makeHandler(app))
-
-	return srv, nil
+type SearchInput struct {
+	Query                    string `json:"query" jsonschema:"Search text"`
+	MaxExtractiveSegmentCount *int  `json:"maxExtractiveSegmentCount,omitempty" jsonschema:"Maximum number of extractive segments to return (default: 1)"`
 }
 
-func makeHandler(app *AppConfig) server.ToolHandlerFunc {
-	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		args := req.GetArguments()
-		q, ok := args["query"].(string)
-		if !ok || strings.TrimSpace(q) == "" {
-			return mcp.NewToolResultError("missing required argument: query"), nil
+type SearchOutput struct {
+	Text string `json:"text" jsonschema:"search results as plain text"`
+}
+
+func CreateMCPServer(app *AppConfig, version string) (*mcp.Server, error) {
+	srv := mcp.NewServer(&mcp.Implementation{Name: "mcp-vertex-search-snippets", Version: version}, nil)
+
+	mcp.AddTool(srv, &mcp.Tool{
+		Name:        "search",
+		Description: "Search for relevant documents based on the provided query.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input SearchInput) (
+		*mcp.CallToolResult, SearchOutput, error,
+	) {
+		q := strings.TrimSpace(input.Query)
+		if q == "" {
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{&mcp.TextContent{Text: "missing required argument: query"}},
+				IsError: true,
+			}, SearchOutput{}, nil
 		}
 
-		// Parse maxExtractiveSegmentCount parameter (optional, defaults to 1)
 		maxSegments := 1
-		if maxSegmentsArg, exists := args["maxExtractiveSegmentCount"]; exists {
-			if maxSegmentsFloat, ok := maxSegmentsArg.(float64); ok {
-				maxSegments = int(maxSegmentsFloat)
-			} else if maxSegmentsInt, ok := maxSegmentsArg.(int); ok {
-				maxSegments = maxSegmentsInt
-			}
+		if input.MaxExtractiveSegmentCount != nil {
+			maxSegments = *input.MaxExtractiveSegmentCount
 		}
 
-		// Acquire a token using the Google Cloud authentication library
 		creds, err := google.FindDefaultCredentials(ctx, "https://www.googleapis.com/auth/cloud-platform")
 		if err != nil {
-			return mcp.NewToolResultErrorFromErr("Failed to find default credentials", err), nil
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{&mcp.TextContent{Text: fmt.Sprintf("Failed to find default credentials: %v", err)}},
+				IsError: true,
+			}, SearchOutput{}, nil
 		}
 
 		tokenSource := creds.TokenSource
 		token, err := tokenSource.Token()
 		if err != nil {
-			return mcp.NewToolResultErrorFromErr("Failed to acquire access token", err), nil
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{&mcp.TextContent{Text: fmt.Sprintf("Failed to acquire access token: %v", err)}},
+				IsError: true,
+			}, SearchOutput{}, nil
 		}
 
-		// Format the token as Bearer token
 		bearerToken := fmt.Sprintf("Bearer %s", token.AccessToken)
 
-		// Build search request with contentSearchSpec if maxSegments is specified
 		body := searchRequest{
 			Query: q,
 			ContentSearchSpec: &contentSearchSpec{
@@ -77,21 +70,27 @@ func makeHandler(app *AppConfig) server.ToolHandlerFunc {
 		}
 		raw, status, err := PostSearch(app.Config.URL(), bearerToken, body, app.IsDebug)
 		if err != nil {
-			return mcp.NewToolResultErrorFromErr("Vertex search failed", err), nil
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{&mcp.TextContent{Text: fmt.Sprintf("Vertex search failed: %v", err)}},
+				IsError: true,
+			}, SearchOutput{}, nil
 		}
 		if status < 200 || status >= 300 {
-			return mcp.NewToolResultError(fmt.Sprintf("Vertex search HTTP %d: %s", status, string(raw))), nil
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{&mcp.TextContent{Text: fmt.Sprintf("Vertex search HTTP %d: %s", status, string(raw))}},
+				IsError: true,
+			}, SearchOutput{}, nil
 		}
 
-		// Build plain-text output from the response:
 		text := extractText(raw)
 		if strings.TrimSpace(text) == "" {
-			// There is no content, return a default message
-			return mcp.NewToolResultText("No content found for the query."), nil
+			return nil, SearchOutput{Text: "No content found for the query."}, nil
 		}
 
-		return mcp.NewToolResultText(text), nil
-	}
+		return nil, SearchOutput{Text: text}, nil
+	})
+
+	return srv, nil
 }
 
 type vertexResponse struct {
@@ -119,7 +118,6 @@ func extractText(raw []byte) string {
 	var parts []string
 	for _, r := range vr.Results {
 		ds := r.Document.Derived
-		// Prefer extractive segments
 		if len(ds.ExtractiveSegments) > 0 {
 			for _, seg := range ds.ExtractiveSegments {
 				if s := strings.TrimSpace(seg.Content); s != "" {
@@ -128,7 +126,6 @@ func extractText(raw []byte) string {
 			}
 			continue
 		}
-		// Then snippets
 		if len(ds.Snippets) > 0 {
 			for _, sn := range ds.Snippets {
 				if s := strings.TrimSpace(sn.Snippet); s != "" {
@@ -137,7 +134,6 @@ func extractText(raw []byte) string {
 			}
 			continue
 		}
-		// Then title/link
 		if ds.Title != "" || ds.Link != "" {
 			parts = append(parts, strings.TrimSpace(strings.TrimSpace(ds.Title)+" - "+strings.TrimSpace(ds.Link)))
 		}
