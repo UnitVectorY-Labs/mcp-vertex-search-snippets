@@ -70,7 +70,7 @@ func CreateMCPServer(app *AppConfig, version string) (*mcp.Server, error) {
 			}, SearchOutput{}, nil
 		}
 
-		bearerToken := fmt.Sprintf("Bearer %s", token.AccessToken)
+		bearerToken := "Bearer " + token.AccessToken
 
 		body := searchRequest{
 			Query: q,
