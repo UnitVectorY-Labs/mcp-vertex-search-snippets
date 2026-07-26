@@ -10,6 +10,10 @@ import (
 	"golang.org/x/oauth2/google"
 )
 
+func boolPtr(b bool) *bool {
+	return &b
+}
+
 type SearchInput struct {
 	Query                    string `json:"query" jsonschema:"Search text"`
 	MaxExtractiveSegmentCount *int  `json:"maxExtractiveSegmentCount,omitempty" jsonschema:"Maximum number of extractive segments to return (default: 1)"`
@@ -25,6 +29,13 @@ func CreateMCPServer(app *AppConfig, version string) (*mcp.Server, error) {
 	mcp.AddTool(srv, &mcp.Tool{
 		Name:        "search",
 		Description: "Search for relevant documents based on the provided query.",
+		Annotations: &mcp.ToolAnnotations{
+			Title:           "Search",
+			ReadOnlyHint:    true,
+			DestructiveHint: boolPtr(false),
+			IdempotentHint:  true,
+			OpenWorldHint:   boolPtr(true),
+		},
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input SearchInput) (
 		*mcp.CallToolResult, SearchOutput, error,
 	) {
