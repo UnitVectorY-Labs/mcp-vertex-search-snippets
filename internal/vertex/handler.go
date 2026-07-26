@@ -10,13 +10,14 @@ import (
 	"golang.org/x/oauth2/google"
 )
 
+//go:fix inline
 func boolPtr(b bool) *bool {
-	return &b
+	return new(b)
 }
 
 type SearchInput struct {
-	Query                    string `json:"query" jsonschema:"Search text"`
-	MaxExtractiveSegmentCount *int  `json:"maxExtractiveSegmentCount,omitempty" jsonschema:"Maximum number of extractive segments to return (default: 1)"`
+	Query                     string `json:"query" jsonschema:"Search text"`
+	MaxExtractiveSegmentCount *int   `json:"maxExtractiveSegmentCount,omitempty" jsonschema:"Maximum number of extractive segments to return (default: 1)"`
 }
 
 type SearchOutput struct {
@@ -32,9 +33,9 @@ func CreateMCPServer(app *AppConfig, version string) (*mcp.Server, error) {
 		Annotations: &mcp.ToolAnnotations{
 			Title:           "Search",
 			ReadOnlyHint:    true,
-			DestructiveHint: boolPtr(false),
+			DestructiveHint: new(false),
 			IdempotentHint:  true,
-			OpenWorldHint:   boolPtr(true),
+			OpenWorldHint:   new(true),
 		},
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input SearchInput) (
 		*mcp.CallToolResult, SearchOutput, error,
