@@ -13,11 +13,15 @@ import (
 type searchRequest struct {
 	Query             string             `json:"query"`
 	ContentSearchSpec *contentSearchSpec `json:"contentSearchSpec,omitempty"`
-	// Additional parameters can be added here to further customize the query
 }
 
 type contentSearchSpec struct {
+	SnippetSpec           *snippetSpec           `json:"snippetSpec,omitempty"`
 	ExtractiveContentSpec *extractiveContentSpec `json:"extractiveContentSpec,omitempty"`
+}
+
+type snippetSpec struct {
+	ReturnSnippet bool `json:"returnSnippet"`
 }
 
 type extractiveContentSpec struct {
