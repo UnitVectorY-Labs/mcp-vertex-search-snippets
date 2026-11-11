@@ -2,7 +2,8 @@ package vertex
 
 import (
 	"bytes"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"io"
 	"log"
@@ -12,16 +13,16 @@ import (
 
 type searchRequest struct {
 	Query             string             `json:"query"`
-	ContentSearchSpec *contentSearchSpec `json:"contentSearchSpec,omitempty"`
+	ContentSearchSpec *contentSearchSpec `json:"contentSearchSpec,omitzero"`
 	// Additional parameters can be added here to further customize the query
 }
 
 type contentSearchSpec struct {
-	ExtractiveContentSpec *extractiveContentSpec `json:"extractiveContentSpec,omitempty"`
+	ExtractiveContentSpec *extractiveContentSpec `json:"extractiveContentSpec,omitzero"`
 }
 
 type extractiveContentSpec struct {
-	MaxExtractiveSegmentCount int `json:"maxExtractiveSegmentCount,omitempty"`
+	MaxExtractiveSegmentCount int `json:"maxExtractiveSegmentCount,omitzero"`
 }
 
 func PostSearch(url, token string, reqBody searchRequest, debug bool) ([]byte, int, error) {
@@ -60,9 +61,9 @@ func PostSearch(url, token string, reqBody searchRequest, debug bool) ([]byte, i
 	if debug {
 		log.Println("--- Vertex Search Response ---")
 		log.Printf("Status Code: %d\n", resp.StatusCode)
-		var pretty bytes.Buffer
-		if json.Indent(&pretty, body, "", "  ") == nil {
-			log.Printf("Body:\n%s\n", pretty.String())
+		pretty := jsontext.Value(bytes.Clone(body))
+		if pretty.Indent(jsontext.WithIndent("  ")) == nil {
+			log.Printf("Body:\n%s\n", pretty)
 		} else {
 			log.Printf("Body (raw): %s\n", body)
 		}
