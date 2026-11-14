@@ -4,7 +4,7 @@ go 1.27.0 // GOVERSION
 
 require (
 	github.com/modelcontextprotocol/go-sdk v1.8.0
-	golang.org/x/oauth2 v0.37.0
+	golang.org/x/oauth2 v0.38.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
